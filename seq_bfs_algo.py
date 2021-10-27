@@ -12,7 +12,7 @@ __email__ = "luishengjie@outlook.com"
 
 import numpy as np
 import time
-from src.load_graph import get_graph
+from src.load_graph import get_graph, gen_balanced_tree
 
 def get_adjacent_nodes(G, x):
     idx_lst = []
@@ -22,7 +22,7 @@ def get_adjacent_nodes(G, x):
             idx_lst.append(idx)
     return idx_lst
 
-def bfs_seq():
+def bfs_seq(target):
     r = 0
     CQ = []
     G = get_graph()
@@ -46,6 +46,8 @@ def bfs_seq():
             u = CQ.pop(0)
             # For each v adjacent to u
             for v in get_adjacent_nodes(G, u):
+                if v == target:
+                    return True
                 if P[v] == np.inf:
                     P[v] = u
                     NQ.append(v)
@@ -54,11 +56,17 @@ def bfs_seq():
         tmp = NQ
         NQ = CQ
         CQ = tmp
+    return False
 
 def main():
     start_time = time.time()
-    bfs_seq()
+    find_node = bfs_seq(target=4)
     print("--- %s seconds ---" % (time.time() - start_time))
+    if find_node:
+        print(f"Node Found")
+    else:
+        print(f"Node not Found")
+
 
 if __name__=='__main__':
     main()
