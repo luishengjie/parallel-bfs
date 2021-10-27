@@ -12,14 +12,13 @@ __email__ = "luishengjie@outlook.com"
 import numpy as np
 from multiprocessing import Pool
 import multiprocessing as mp
+from mpi4py import MPI
+
 import time
-from src.load_graph import get_graph
+from src.load_graph import get_graph, gen_balanced_tree
 from functools import partial
 
 
-
-P_ARR = []
-FOUND_TARGET = [False]
 
 def get_adjacent_nodes(G, x):
     idx_lst = []
@@ -29,65 +28,98 @@ def get_adjacent_nodes(G, x):
             idx_lst.append(idx)
     return idx_lst
 
-def get_neighbour(u, G, target):
-    nq = []
-    # For each v adjacent to u
-    # print(u)
-    for v in get_adjacent_nodes(G, u):
-        if v == target:
-            print(v, target)
-            FOUND_TARGET = [True]
-        if P_ARR[v] == np.inf:
-            P_ARR[v] = u
-            nq.append(v)
-    return nq
+# def get_neighbour(u, G, target):
+#     nq = []
+#     # For each v adjacent to u
+#     # print(u)
+#     found_node = False
+#     for v in get_adjacent_nodes(G, u):
+#         if v == target:
+#             found_node = True
+#         if P_ARR[v] == np.inf:
+#             P_ARR[v] = u
+#             nq.append(v)
+#     return nq, found_node
 
-def bfs_parallel(target):
-    r = 0
-    CQ = []
-    G = get_graph()
-    print(G)
+def get_neighbour(u_list, G, p_arr, target, comm, world, rank):
+    split = np.array_split(u_list, world, axis=0)
+    split = comm.scatter(split, root=0)
+    found_node = False
+    nq = []
+    for u in split:
+        for v in get_adjacent_nodes(G, u):
+            if v == target:
+                found_node = True
+            if p_arr[v] == np.inf:
+                p_arr[v] = u
+                nq.append(v)
+
+    data = comm.gather(nq, root=0)
+    if rank == 0:
+        result = []
+        for d in data:
+            result += d
+        return result, found_node, p_arr
+        
+
+def bfs_parallel(G, target, comm, world, rank):
+    """ @param A: Takes in the directed adjacency matrix of a tree
+        @return 1: Node found
+        @return 0: Program Exit (rank==0), Node not found
+        @retrun -1: Multiprocess Exit (rank!=0)
     
+    """
+    r = 0
+    cq = []
+    p_arr = []
     # Init all values in P to inf
     for i in range(G.shape[0]):
-        P_ARR.append(np.inf)
+        p_arr.append(np.inf)
 
     # Set root node 
-    P_ARR[r] = 0
+    p_arr[r] = 0
 
     # Enqueue r
-    CQ.append(r)
-    while len(CQ) != 0:
-        print(f"CQ: {CQ}")
+    cq.append(r)
+    while len(cq) != 0:
+        # print(f"CQ: {CQ}")
         # Parallel Dequeue
-        num_cpu = mp.cpu_count()
-        with Pool(num_cpu) as pool:
-            nq_tmp = pool.map(partial(get_neighbour, G=G, target=target), CQ)
-            print(FOUND_TARGET)
-            
-            if FOUND_TARGET[0] == True:
-                return True
-           
-        # print(nq_tmp)
-        NQ = list(np.concatenate(nq_tmp).ravel())
-    
-        # Swap CQ and NQ
-        print(f"NQ: {NQ}")
-        CQ = NQ
-
-    return False
+        if rank == 0:
+            nq, found_node, p_arr = get_neighbour(cq, G, p_arr, target, comm, world, rank)
+            if found_node:
+                # print(f"NQ: {NQ}")
+                return 1
+            # Swap CQ and NQ
+            cq = nq
+        else:
+            get_neighbour(cq, G, p_arr, target, comm, world, rank)
+    if rank==0:
+        return 0
+    else:
+        return -1
 
 
 def main():
+    comm = MPI.COMM_WORLD
+    world = comm.size
+    rank = comm.Get_rank()
+
     start_time = time.time()
-    find_node = bfs_parallel(target=3)
+    G  = gen_balanced_tree(4, 5, directed=True)
+    target = 999999
+    # G = get_graph()
+    flag = bfs_parallel(G, target=target, comm=comm, world=world, rank=rank)
     
     print("--- %s seconds ---" % (time.time() - start_time))
-    if find_node:
+    if flag == 1:
         print(f"Node Found")
     else:
         print(f"Node not Found")
-    print(FOUND_TARGET)
+
+    if flag >= 0:
+        # Since there are no serial sections in MPI code, 
+        # a flag is used to terminate the MPI programme.
+        comm.Abort()
 
 if __name__=='__main__':
     main()

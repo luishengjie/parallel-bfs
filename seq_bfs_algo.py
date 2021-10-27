@@ -22,15 +22,12 @@ def get_adjacent_nodes(G, x):
             idx_lst.append(idx)
     return idx_lst
 
-def bfs_seq(target):
+def bfs_seq(G, target):
     r = 0
     CQ = []
-    G = get_graph()
-    print(G)
     
     # Init all values in P to inf
     P = [np.inf for i in range(G.shape[0])]
-    print(P)
     # Set root node 
     P[r] = 0
     
@@ -38,7 +35,7 @@ def bfs_seq(target):
     CQ.append(r)
 
     while len(CQ) != 0:
-        print(f"CQ: {CQ}")
+        # print(f"CQ: {CQ}")
         NQ = []
         
         for i in range(len(CQ)):
@@ -52,7 +49,6 @@ def bfs_seq(target):
                     P[v] = u
                     NQ.append(v)
         # Swap CQ and NQ
-        print(f"NQ: {NQ}")
         tmp = NQ
         NQ = CQ
         CQ = tmp
@@ -60,7 +56,10 @@ def bfs_seq(target):
 
 def main():
     start_time = time.time()
-    find_node = bfs_seq(target=4)
+    G  = gen_balanced_tree(4, 5, directed=True)
+    print(G.shape)
+    # G = get_graph()
+    find_node = bfs_seq(G, target=999999)
     print("--- %s seconds ---" % (time.time() - start_time))
     if find_node:
         print(f"Node Found")
