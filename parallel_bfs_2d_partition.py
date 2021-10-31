@@ -19,7 +19,6 @@ from src.load_graph import get_graph, gen_balanced_tree
 def parallel_dot_prod(comm, world, rank, a, b):
     if rank !=0:
         b = None
-
     b = comm.bcast(b, root=0)
 
     if world == 1:

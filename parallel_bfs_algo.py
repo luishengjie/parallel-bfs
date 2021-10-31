@@ -28,18 +28,6 @@ def get_adjacent_nodes(G, x):
             idx_lst.append(idx)
     return idx_lst
 
-# def get_neighbour(u, G, target):
-#     nq = []
-#     # For each v adjacent to u
-#     # print(u)
-#     found_node = False
-#     for v in get_adjacent_nodes(G, u):
-#         if v == target:
-#             found_node = True
-#         if P_ARR[v] == np.inf:
-#             P_ARR[v] = u
-#             nq.append(v)
-#     return nq, found_node
 
 def get_neighbour(u_list, G, p_arr, target, comm, world, rank):
     split = np.array_split(u_list, world, axis=0)
@@ -105,7 +93,7 @@ def main():
     rank = comm.Get_rank()
 
     start_time = time.time()
-    G  = gen_balanced_tree(4, 5, directed=True)
+    G  = gen_balanced_tree(5, 5, directed=True)
     target = 999999
     # G = get_graph()
     flag = bfs_parallel(G, target=target, comm=comm, world=world, rank=rank)
